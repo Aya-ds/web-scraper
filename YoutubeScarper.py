@@ -1,49 +1,38 @@
-from pytube import YouTube
-import time
+import requests
+import re
+import json
 
-def get_video_info(link):
+def get_video_info(url):
     try:
-        yt = YouTube(link)
+        # Get the webpage
+        response = requests.get(url)
+        response.raise_for_status()
         
-        # Try to access properties with error handling
-        try:
-            title = yt.title
-        except:
-            title = "Could not retrieve title"
-            
-        try:
-            views = yt.views
-        except:
-            views = "Could not retrieve views"
-            
-        try:
-            length = yt.length
-        except:
-            length = "Could not retrieve length"
-            
-        try:
-            description = yt.description[:200] + "..." if len(yt.description) > 200 else yt.description
-        except:
-            description = "Could not retrieve description"
-            
-        try:
-            rating = yt.rating
-        except:
-            rating = "Could not retrieve rating"
+        # Extract JSON data from the webpage
+        pattern = r'var ytInitialPlayerResponse = ({.*?});'
+        match = re.search(pattern, response.text)
         
-        print("Title:", title)
-        print("Views:", views)
-        print("Duration:", f"{length} seconds" if isinstance(length, int) else length)
-        print("Description:", description)
-        print("Rating:", rating)
-        
+        if match:
+            data = json.loads(match.group(1))
+            video_details = data.get('videoDetails', {})
+            
+            print("Title:", video_details.get('title', 'N/A'))
+            print("Views:", video_details.get('viewCount', 'N/A'))
+            print("Duration:", video_details.get('lengthSeconds', 'N/A'), "seconds")
+            print("Channel:", video_details.get('author', 'N/A'))
+            print("Description:", video_details.get('shortDescription', 'N/A')[:200] + "...")
+            
+        else:
+            # Try alternative pattern
+            pattern2 = r'"title":"([^"]*)"'
+            title_match = re.search(pattern2, response.text)
+            if title_match:
+                print("Title:", title_match.group(1))
+            else:
+                print("Could not extract video information")
+                
     except Exception as e:
-        print(f"Error occurred: {e}")
-        print("This might be due to:")
-        print("1. Invalid YouTube URL")
-        print("2. Video is private or restricted")
-        print("3. pytube needs to be updated")
-        print("4. YouTube has changed its API")
+        print(f"Error: {e}")
 
 # Main execution
 link = input("Enter the YouTube video link: ")
